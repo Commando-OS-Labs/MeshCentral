@@ -1,0 +1,27 @@
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+{$SUPPORT_CONSOLE_HOST} {
+	encode zstd gzip
+	reverse_proxy http://meshcentral:443
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+	}
+}
+
+{$SUPPORT_BROKER_HOST} {
+	@health path /health
+	@broker path /v1/*
+	reverse_proxy @health http://broker:4310
+	reverse_proxy @broker http://broker:4310
+	respond 404
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+	}
+}

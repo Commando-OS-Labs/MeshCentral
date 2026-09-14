@@ -82,6 +82,7 @@ if (args['_'].length == 0) {
     console.log("                              - Use wss://localhost:443?key=xxx if login key is required.");
     console.log("  --loginuser [username]      - Login username, admin is default.");
     console.log("  --loginpass [password]      - Login password OR Leave blank to enter password at prompt");
+    console.log("  --loginpassfile [file]      - File containing the login password.");
     console.log("  --token [number]            - 2nd factor authentication token.");
     console.log("  --loginkey [hex]            - Server login key in hex.");
     console.log("  --loginkeyfile [file]       - File containing server login key in hex.");
@@ -1342,8 +1343,11 @@ function serverConnect() {
         if (loginKey != null) { url += '?key=' + loginKey; }
     }
 
-    // TODO: checkServerIdentity does not work???
-    var options = { rejectUnauthorized: false, checkServerIdentity: onVerifyServer }
+    // Strict TLS is opt-in for compatibility. Commando's managed-support broker
+    // always enables it so the login key cannot be sent to an untrusted server.
+    var options = (args.tlsstrict === true)
+        ? { rejectUnauthorized: true }
+        : { rejectUnauthorized: false, checkServerIdentity: onVerifyServer }
 
     // Setup the HTTP proxy if needed
     if (args.proxy != null) {
@@ -1351,7 +1355,15 @@ function serverConnect() {
         options.agent = new HttpsProxyAgent(new URL(args.proxy));
     }
 
-    // Password authentication
+    // Password authentication. Reading from a file prevents broker credentials
+    // from appearing in process arguments or process listings.
+    if (args.loginpassfile != null) {
+        var fs = require('fs');
+        try {
+            args.loginpass = fs.readFileSync(args.loginpassfile, 'utf8').replace(/[\r\n]+$/, '');
+            if ((args.loginpass.length < 1) || (args.loginpass.length > 1024)) { throw new Error('Invalid login password file.'); }
+        } catch (ex) { console.log(ex.message); process.exit(); return; }
+    }
     if (args.loginpass != null) {
         var username = 'admin';
         if (args.loginuser != null) { username = args.loginuser; }
