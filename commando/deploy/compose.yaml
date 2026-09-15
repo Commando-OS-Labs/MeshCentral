@@ -44,6 +44,8 @@ services:
     build:
       context: ../..
       dockerfile: docker/Dockerfile
+      args:
+        INCLUDE_MONGODB_TOOLS: "true"
     image: commando360/meshcentral:${MESH_VERSION:-1.2.5-commando.1}
     environment:
       DYNAMIC_CONFIG: "false"

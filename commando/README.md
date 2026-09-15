@@ -21,8 +21,8 @@ No MeshCentral administrator credential, login token or device inventory is retu
 ## Bootstrap inputs
 
 1. Copy `commando/deploy/.env.example` to `.env` and provide the two hosts, ACME email, Platform framing origins and MongoDB credentials.
-2. Create `commando/deploy/secrets/broker-token` and `mesh-session-key` with at least 64 random characters; permissions `0600`.
-3. Create a least-privilege `commando-broker` MeshCentral account with guest-sharing rights only for the managed Gateway device group. Store its long random password in `secrets/mesh-login-password`; permissions `0600`.
+2. Create `commando/deploy/secrets/broker-token` and `mesh-session-key` with at least 64 random characters. Keep the parent `secrets` directory at `0700`; use `0444` for these bind-mounted files so the non-root broker can read only the secrets explicitly mounted into its container.
+3. Create a least-privilege `commando-broker` MeshCentral account with guest-sharing rights only for the managed Gateway device group. Store its long random password in `secrets/mesh-login-password`; use the same protected-directory permissions described above.
 4. Copy `devices.example.json` to `devices.json`. Add only commissioned company-owned devices and bind every MeshCentral node ID to both Gateway ID and current device-key ID.
 5. Run `docker compose --env-file .env -f commando/deploy/compose.yaml config`, then `docker compose --env-file .env -f commando/deploy/compose.yaml up -d --build`.
 6. Configure Platform with the broker URL, console origin and the same broker token. Never put MeshCentral credentials in Platform.

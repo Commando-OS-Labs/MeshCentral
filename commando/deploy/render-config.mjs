@@ -40,7 +40,7 @@ const config = {
     cert: host,
     WANonly: true,
     sessionKey,
-    port: 443,
+    port: 8443,
     aliasPort: 443,
     redirPort: 0,
     tlsOffload: "172.29.0.2",

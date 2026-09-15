@@ -5,7 +5,7 @@
 
 {$SUPPORT_CONSOLE_HOST} {
 	encode zstd gzip
-	reverse_proxy http://meshcentral:443
+	reverse_proxy http://meshcentral:8443
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
