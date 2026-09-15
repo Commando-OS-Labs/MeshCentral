@@ -61,7 +61,10 @@ const config = {
     "": {
       title: "Commando360 Managed Support",
       title2: "Authorized company systems only",
-      minify: true,
+      // This source-built image does not generate MeshCentral's optional
+      // `*-min.js` web assets. Enabling minification makes invite pages point
+      // at missing files and remain hidden after load.
+      minify: false,
       newAccounts: false,
       userNameIsEmail: false,
       certUrl: `https://${host}:443`,
