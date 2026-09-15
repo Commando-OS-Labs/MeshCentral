@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "devices": [
+    {
+      "gatewayId": "gateway-poc-example",
+      "deviceKeyId": "commissioned-device-key-id",
+      "nodeId": "node//meshcentral-node-id",
+      "enabled": false
+    }
+  ]
+}

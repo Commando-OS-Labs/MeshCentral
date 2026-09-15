@@ -1,0 +1,150 @@
+name: commando-managed-support
+
+services:
+  config-init:
+    image: node:22.19.0-alpine3.22
+    command: ["node", "/bootstrap/render-config.mjs"]
+    environment:
+      SUPPORT_CONSOLE_HOST: ${SUPPORT_CONSOLE_HOST:?required}
+      PLATFORM_FRAMING_ORIGINS: ${PLATFORM_FRAMING_ORIGINS:?required}
+      MONGO_USERNAME: ${MONGO_USERNAME:?required}
+      MONGO_PASSWORD: ${MONGO_PASSWORD:?required}
+    volumes:
+      - mesh-data:/data
+      - ./render-config.mjs:/bootstrap/render-config.mjs:ro
+    secrets:
+      - mesh-session-key
+    networks:
+      managed-support:
+        ipv4_address: 172.29.0.6
+    restart: "no"
+
+  mongo:
+    image: mongo:7.0.16-jammy
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:?required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?required}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      managed-support:
+        ipv4_address: 172.29.0.5
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' --username \"$$MONGO_INITDB_ROOT_USERNAME\" --password \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin | grep 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  meshcentral:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        INCLUDE_MONGODB_TOOLS: "true"
+    image: commando360/meshcentral:${MESH_VERSION:-1.2.5-commando.1}
+    environment:
+      DYNAMIC_CONFIG: "false"
+      CONFIG_FILE: /opt/meshcentral/meshcentral-data/config.json
+    volumes:
+      - mesh-data:/opt/meshcentral/meshcentral-data
+      - mesh-files:/opt/meshcentral/meshcentral-files
+      - mesh-backups:/opt/meshcentral/meshcentral-backups
+    extra_hosts:
+      - "${SUPPORT_CONSOLE_HOST:?required}:172.29.0.2"
+    networks:
+      managed-support:
+        ipv4_address: 172.29.0.3
+    depends_on:
+      config-init:
+        condition: service_completed_successfully
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  broker:
+    build:
+      context: ../..
+      dockerfile: commando/deploy/Dockerfile.broker
+    image: commando360/managed-support-broker:${MESH_VERSION:-1.2.5-commando.1}
+    environment:
+      BROKER_PORT: "4310"
+      BROKER_TOKEN_FILE: /run/secrets/broker-token
+      MESH_ORIGIN: https://${SUPPORT_CONSOLE_HOST:?required}
+      MESH_EMBED_ORIGIN: https://${SUPPORT_CONSOLE_HOST:?required}
+      MESH_LOGIN_USER: commando-broker
+      MESH_LOGIN_PASSWORD_FILE: /run/secrets/mesh-login-password
+      MESHCTRL_PATH: /app/meshctrl.js
+      DEVICE_MAP_FILE: /config/devices.json
+      BROKER_STATE_FILE: /state/sessions.json
+    volumes:
+      - broker-state:/state
+      - ./devices.json:/config/devices.json:ro
+    extra_hosts:
+      - "${SUPPORT_CONSOLE_HOST:?required}:172.29.0.2"
+    secrets:
+      - broker-token
+      - mesh-login-password
+    networks:
+      managed-support:
+        ipv4_address: 172.29.0.4
+    depends_on:
+      - meshcentral
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    security_opt:
+      - no-new-privileges:true
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?required}
+      SUPPORT_CONSOLE_HOST: ${SUPPORT_CONSOLE_HOST:?required}
+      SUPPORT_BROKER_HOST: ${SUPPORT_BROKER_HOST:?required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      managed-support:
+        ipv4_address: 172.29.0.2
+    depends_on:
+      - meshcentral
+      - broker
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  managed-support:
+    ipam:
+      config:
+        - subnet: 172.29.0.0/24
+
+volumes:
+  mesh-data:
+  mesh-files:
+  mesh-backups:
+  mongo-data:
+  broker-state:
+  caddy-data:
+  caddy-config:
+
+secrets:
+  broker-token:
+    file: ./secrets/broker-token
+  mesh-login-password:
+    file: ./secrets/mesh-login-password
+  mesh-session-key:
+    file: ./secrets/mesh-session-key

@@ -1,0 +1,26 @@
+# Resource-isolated overlay for the shared 2 vCPU / 4 GB Vultr inference host.
+# Port 80 remains owned by the existing inference reverse proxy; Caddy uses
+# TLS-ALPN validation on 443 for the support hostnames.
+services:
+  config-init:
+    cpus: 0.10
+    mem_limit: 96m
+
+  mongo:
+    cpus: 0.25
+    mem_limit: 384m
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
+
+  meshcentral:
+    cpus: 0.50
+    mem_limit: 512m
+
+  broker:
+    cpus: 0.15
+    mem_limit: 128m
+
+  caddy:
+    cpus: 0.15
+    mem_limit: 128m
+    ports: !override
+      - "${SUPPORT_BIND_IP:?required}:443:443"
