@@ -30,6 +30,8 @@ No MeshCentral administrator credential, login token or device inventory is retu
 For the shared Vultr inference host, also pass
 `-f commando/deploy/compose.vultr.yaml`. This keeps port 80 assigned to the
 existing inference proxy and caps the managed-support stack at 1.25 vCPU and
-1.25 GB RAM. Treat this as a low-concurrency POC profile, not a scale target.
+1.25 GB RAM. Set `SUPPORT_BIND_IP` to the VPS public IPv4 address so a private
+Tailscale listener can retain its own port 443. Treat this as a low-concurrency
+POC profile, not a scale target.
 
 Production rollout requires restore testing, expiry and revocation drills, agent-signing verification and a representative Windows and Linux qualification.

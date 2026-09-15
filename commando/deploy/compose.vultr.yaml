@@ -23,5 +23,4 @@ services:
     cpus: 0.15
     mem_limit: 128m
     ports: !override
-      - "443:443"
-
+      - "${SUPPORT_BIND_IP:?required}:443:443"
