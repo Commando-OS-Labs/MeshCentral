@@ -16,9 +16,11 @@
 {$SUPPORT_BROKER_HOST} {
 	@health path /health
 	@broker path /v1/*
-	reverse_proxy @health http://broker:4310
-	reverse_proxy @broker http://broker:4310
-	respond 404
+	route {
+		reverse_proxy @health http://broker:4310
+		reverse_proxy @broker http://broker:4310
+		respond 404
+	}
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
