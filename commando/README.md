@@ -27,4 +27,9 @@ No MeshCentral administrator credential, login token or device inventory is retu
 5. Run `docker compose --env-file .env -f commando/deploy/compose.yaml config`, then `docker compose --env-file .env -f commando/deploy/compose.yaml up -d --build`.
 6. Configure Platform with the broker URL, console origin and the same broker token. Never put MeshCentral credentials in Platform.
 
+For the shared Vultr inference host, also pass
+`-f commando/deploy/compose.vultr.yaml`. This keeps port 80 assigned to the
+existing inference proxy and caps the managed-support stack at 1.25 vCPU and
+1.25 GB RAM. Treat this as a low-concurrency POC profile, not a scale target.
+
 Production rollout requires restore testing, expiry and revocation drills, agent-signing verification and a representative Windows and Linux qualification.
