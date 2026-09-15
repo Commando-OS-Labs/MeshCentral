@@ -6,6 +6,10 @@ services:
     cpus: 0.10
     mem_limit: 96m
 
+  broker-state-init:
+    cpus: 0.05
+    mem_limit: 32m
+
   mongo:
     cpus: 0.25
     mem_limit: 384m

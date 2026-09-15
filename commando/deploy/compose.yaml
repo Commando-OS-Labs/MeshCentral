@@ -19,6 +19,18 @@ services:
         ipv4_address: 172.29.0.6
     restart: "no"
 
+  broker-state-init:
+    image: node:22.19.0-alpine3.22
+    command: ["sh", "-c", "chown 100:101 /state && chmod 0700 /state"]
+    user: "0:0"
+    volumes:
+      - broker-state:/state
+    networks:
+      - managed-support
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+
   mongo:
     image: mongo:7.0.16-jammy
     environment:
@@ -95,7 +107,10 @@ services:
       managed-support:
         ipv4_address: 172.29.0.4
     depends_on:
-      - meshcentral
+      meshcentral:
+        condition: service_started
+      broker-state-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     read_only: true
     tmpfs:

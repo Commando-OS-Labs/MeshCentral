@@ -79,6 +79,22 @@ test("the broker CLI path retains strict certificate and hostname validation", a
   assert.match(meshCtrl, /args\.tlsstrict === true/);
   assert.match(meshCtrl, /\? \{ rejectUnauthorized: true \}/);
   assert.match(meshCtrl, /args\.loginpassfile != null/);
+  assert.match(meshCtrl, /--guestsharing\s+- Allow creation and removal of device guest shares/);
+  assert.equal(
+    (meshCtrl.match(/args\.guestsharing\) \{ meshrights \|= 524288; \}/g) ?? []).length,
+    2,
+    "group and device assignments must expose only the native guest-sharing right",
+  );
+});
+
+test("the deployment initializes broker state for the non-root runtime", async () => {
+  const compose = await readFile(
+    fileURLToPath(new URL("../deploy/compose.yaml", import.meta.url)),
+    "utf8",
+  );
+  assert.match(compose, /broker-state-init:/);
+  assert.match(compose, /chown 100:101 \/state && chmod 0700 \/state/);
+  assert.match(compose, /broker-state-init:\n\s+condition: service_completed_successfully/);
 });
 
 test("share parsing accepts only the configured console origin", () => {

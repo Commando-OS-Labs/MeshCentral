@@ -733,6 +733,7 @@ if (args['_'].length == 0) {
                         console.log("  --limitedevents        - User can only see his own events.");
                         console.log("  --chatnotify           - Allow chat and notification options.");
                         console.log("  --uninstall            - Allow remote uninstall of the agent.");
+                        console.log("  --guestsharing         - Allow creation and removal of device guest shares.");
                         if (args.limiteddesktop) { meshrights |= 4096; }
                         if (args.limitedevents) { meshrights |= 8192; }
                         if (args.chatnotify) { meshrights |= 16384; }
@@ -1690,6 +1691,7 @@ function serverConnect() {
                 if (args.limitedevents) { meshrights |= 8192; }
                 if (args.chatnotify) { meshrights |= 16384; }
                 if (args.uninstall) { meshrights |= 32768; }
+                if (args.guestsharing) { meshrights |= 524288; }
                 var op = { action: 'addmeshuser', userids: [args.userid], meshadmin: meshrights, responseid: 'meshctrl' };
                 if (args.id) { op.meshid = args.id; } else if (args.group) { op.meshname = args.group; }
                 ws.send(JSON.stringify(op));
@@ -1719,6 +1721,7 @@ function serverConnect() {
                 if (args.limitedevents) { meshrights |= 8192; }
                 if (args.chatnotify) { meshrights |= 16384; }
                 if (args.uninstall) { meshrights |= 32768; }
+                if (args.guestsharing) { meshrights |= 524288; }
                 var op = { action: 'adddeviceuser', nodeid: args.id, usernames: [args.userid], rights: meshrights, responseid: 'meshctrl' };
                 ws.send(JSON.stringify(op));
                 break;
