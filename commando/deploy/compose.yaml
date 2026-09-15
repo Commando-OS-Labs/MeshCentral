@@ -54,6 +54,8 @@ services:
       - mesh-data:/opt/meshcentral/meshcentral-data
       - mesh-files:/opt/meshcentral/meshcentral-files
       - mesh-backups:/opt/meshcentral/meshcentral-backups
+    extra_hosts:
+      - "${SUPPORT_CONSOLE_HOST:?required}:172.29.0.2"
     networks:
       managed-support:
         ipv4_address: 172.29.0.3
@@ -84,6 +86,8 @@ services:
     volumes:
       - broker-state:/state
       - ./devices.json:/config/devices.json:ro
+    extra_hosts:
+      - "${SUPPORT_CONSOLE_HOST:?required}:172.29.0.2"
     secrets:
       - broker-token
       - mesh-login-password
