@@ -237,19 +237,31 @@ function normalizeShareUrl(value, allowedOrigins, embedOrigin) {
   return new URL(`${url.pathname}${url.search}`, `${embedOrigin}/`).toString();
 }
 
-export function parseCreatedShare(output, meshOrigin, embedOrigin = meshOrigin) {
-  const lines = String(output)
+function createdShareLines(output) {
+  return String(output)
     .replaceAll("\r", "")
     .trim()
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+function parseCreatedShareId(lines) {
   const idLine = lines.find((line) => line.startsWith("ID: "));
-  const urlLine = lines.find((line) => line.startsWith("URL: "));
   const shareId = idLine?.slice(4);
-  if (!shareId || !/^[A-Za-z0-9_-]{8,128}$/.test(shareId) || !urlLine) {
+  // MeshCentral 1.2.5 generates exactly 9 random bytes encoded as 12 base64
+  // characters, replacing "/" with "@". Keep this strict and version-bound.
+  if (!shareId || !/^[A-Za-z0-9+@]{12}$/.test(shareId)) {
     throw new Error("MeshCentral returned an invalid share");
   }
+  return shareId;
+}
+
+export function parseCreatedShare(output, meshOrigin, embedOrigin = meshOrigin) {
+  const lines = createdShareLines(output);
+  const shareId = parseCreatedShareId(lines);
+  const urlLine = lines.find((line) => line.startsWith("URL: "));
+  if (!urlLine) throw new Error("MeshCentral returned an invalid share");
   const url = normalizeShareUrl(urlLine.slice(5), [meshOrigin], embedOrigin);
   return { shareId, url };
 }
@@ -354,12 +366,14 @@ export function createBrokerService(config, options = {}) {
             "--end",
             input.expiresAt.toISOString(),
           ]);
+          // Record the provider ID before validating its returned URL. If URL
+          // validation fails, the catch block can still revoke the new share.
+          shareIds[view] = parseCreatedShareId(createdShareLines(output));
           const created = parseCreatedShare(
             output,
             config.meshOrigin,
             config.embedOrigin,
           );
-          shareIds[view] = created.shareId;
           views[view] = created.url;
         }
       } catch (error) {

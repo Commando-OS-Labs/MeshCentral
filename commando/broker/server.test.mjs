@@ -101,18 +101,18 @@ test("the deployment initializes broker state for the non-root runtime", async (
 test("share parsing validates the MeshCentral origin and returns the private console origin", () => {
   assert.deepEqual(
     parseCreatedShare(
-      "ID: share_12345678\nURL: https://support.commando360.ai/sharing?c=token\n",
+      "ID: Abcdef+Gh@12\nURL: https://support.commando360.ai/sharing?c=token\n",
       "https://support.commando360.ai",
       "https://ai-services.sphinx-balance.ts.net:8443",
     ),
     {
-      shareId: "share_12345678",
+      shareId: "Abcdef+Gh@12",
       url: "https://ai-services.sphinx-balance.ts.net:8443/sharing?c=token",
     },
   );
   assert.throws(() =>
     parseCreatedShare(
-      "ID: share_12345678\nURL: https://attacker.example/sharing?c=token\n",
+      "ID: Abcdef+Gh@12\nURL: https://attacker.example/sharing?c=token\n",
       "https://support.commando360.ai",
       "https://ai-services.sphinx-balance.ts.net:8443",
     ),
@@ -151,7 +151,7 @@ test("one approved session creates least-privilege shares and revokes all of the
       calls.push(args);
       if (args.includes("--remove")) return "OK\n";
       sequence += 1;
-      return `ID: share_0000000${sequence}\nURL: https://support.commando360.ai/sharing?c=token${sequence}\n`;
+      return `ID: Abcdef+Gh@0${sequence}\nURL: https://support.commando360.ai/sharing?c=token${sequence}\n`;
     },
   });
 
@@ -175,6 +175,24 @@ test("one approved session creates least-privilege shares and revokes all of the
   await service.revokeSession(supportSessionId);
   assert.equal(calls.filter((args) => args.includes("--remove")).length, 3);
   assert.equal(JSON.parse(await readFile(stateFile, "utf8")).sessions.length, 0);
+});
+
+test("a rejected provider URL still revokes the created share", async () => {
+  const { config } = await fixture();
+  const calls = [];
+  const service = createBrokerService(config, {
+    now: () => now,
+    runMeshCtrl: async (args) => {
+      calls.push(args);
+      if (args.includes("--remove")) return "OK\n";
+      return "ID: Abcdef+Gh@12\nURL: https://attacker.example/sharing?c=token\n";
+    },
+  });
+
+  await assert.rejects(service.createSession(request()), /invalid share/);
+  const removal = calls.find((args) => args.includes("--remove"));
+  assert.ok(removal);
+  assert.equal(removal[removal.indexOf("--remove") + 1], "Abcdef+Gh@12");
 });
 
 test("a copied Gateway identifier cannot select a differently commissioned device key", async () => {
