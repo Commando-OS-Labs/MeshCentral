@@ -6,6 +6,8 @@ services:
     command: ["node", "/bootstrap/render-config.mjs"]
     environment:
       SUPPORT_CONSOLE_HOST: ${SUPPORT_CONSOLE_HOST:?required}
+      SUPPORT_AGENT_HOST: ${SUPPORT_AGENT_HOST:?required}
+      SUPPORT_PRIVATE_CONSOLE_ORIGIN: ${SUPPORT_PRIVATE_CONSOLE_ORIGIN:?required}
       PLATFORM_FRAMING_ORIGINS: ${PLATFORM_FRAMING_ORIGINS:?required}
       MONGO_USERNAME: ${MONGO_USERNAME:?required}
       MONGO_PASSWORD: ${MONGO_PASSWORD:?required}
@@ -89,7 +91,7 @@ services:
       BROKER_PORT: "4310"
       BROKER_TOKEN_FILE: /run/secrets/broker-token
       MESH_ORIGIN: https://${SUPPORT_CONSOLE_HOST:?required}
-      MESH_EMBED_ORIGIN: https://${SUPPORT_CONSOLE_HOST:?required}
+      MESH_EMBED_ORIGIN: ${SUPPORT_PRIVATE_CONSOLE_ORIGIN:?required}
       MESH_LOGIN_USER: commando-broker
       MESH_LOGIN_PASSWORD_FILE: /run/secrets/mesh-login-password
       MESHCTRL_PATH: /app/meshctrl.js
@@ -123,6 +125,7 @@ services:
     environment:
       ACME_EMAIL: ${ACME_EMAIL:?required}
       SUPPORT_CONSOLE_HOST: ${SUPPORT_CONSOLE_HOST:?required}
+      SUPPORT_AGENT_HOST: ${SUPPORT_AGENT_HOST:?required}
       SUPPORT_BROKER_HOST: ${SUPPORT_BROKER_HOST:?required}
     ports:
       - "80:80"

@@ -6,10 +6,32 @@ function required(name) {
   return value;
 }
 
-const host = required("SUPPORT_CONSOLE_HOST");
-if (!/^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])$/.test(host)) {
-  throw new Error("SUPPORT_CONSOLE_HOST is invalid");
+function hostname(name) {
+  const value = required(name).toLowerCase();
+  if (!/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$/.test(value)) {
+    throw new Error(`${name} is invalid`);
+  }
+  return value;
 }
+
+function exactHttpsOrigin(name) {
+  const url = new URL(required(name));
+  if (
+    url.protocol !== "https:" ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash ||
+    url.username ||
+    url.password
+  ) {
+    throw new Error(`${name} must be an exact HTTPS origin`);
+  }
+  return url;
+}
+
+const host = hostname("SUPPORT_CONSOLE_HOST");
+const agentHost = hostname("SUPPORT_AGENT_HOST");
+const privateConsole = exactHttpsOrigin("SUPPORT_PRIVATE_CONSOLE_ORIGIN");
 const origins = required("PLATFORM_FRAMING_ORIGINS")
   .split(",")
   .map((value) => new URL(value.trim()))
@@ -42,6 +64,14 @@ const config = {
     sessionKey,
     port: 8443,
     aliasPort: 443,
+    agentPort: 8444,
+    agentPortBind: "0.0.0.0",
+    agentAliasPort: 443,
+    // Keep the established host as the agent alias during migration so
+    // existing and newly enrolled Gateways validate the same public TLS key.
+    agentAliasDNS: host,
+    agentPortTls: false,
+    guestShareOrigin: privateConsole.origin,
     redirPort: 0,
     tlsOffload: "172.29.0.2",
     trustedProxy: "172.29.0.2",
@@ -68,6 +98,7 @@ const config = {
       newAccounts: false,
       userNameIsEmail: false,
       certUrl: `https://${host}:443`,
+      allowedOrigin: [host, agentHost, privateConsole.hostname],
       guestDeviceSharing: { maxSessionTime: 240 },
     },
   },

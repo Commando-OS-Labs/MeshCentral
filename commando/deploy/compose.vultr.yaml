@@ -28,3 +28,4 @@ services:
     mem_limit: 128m
     ports: !override
       - "${SUPPORT_BIND_IP:?required}:443:443"
+      - "127.0.0.1:18080:8080"

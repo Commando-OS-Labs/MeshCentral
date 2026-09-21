@@ -221,7 +221,23 @@ async function runMeshCtrl(config, args) {
   return stdout;
 }
 
-export function parseCreatedShare(output, embedOrigin) {
+function normalizeShareUrl(value, allowedOrigins, embedOrigin) {
+  const url = new URL(value);
+  if (
+    !allowedOrigins.includes(url.origin) ||
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.hash ||
+    !url.pathname.endsWith("/sharing") ||
+    !url.searchParams.get("c")
+  ) {
+    throw new Error("MeshCentral returned an invalid share");
+  }
+  return new URL(`${url.pathname}${url.search}`, `${embedOrigin}/`).toString();
+}
+
+export function parseCreatedShare(output, meshOrigin, embedOrigin = meshOrigin) {
   const lines = String(output)
     .replaceAll("\r", "")
     .trim()
@@ -234,26 +250,24 @@ export function parseCreatedShare(output, embedOrigin) {
   if (!shareId || !/^[A-Za-z0-9_-]{8,128}$/.test(shareId) || !urlLine) {
     throw new Error("MeshCentral returned an invalid share");
   }
-  const url = new URL(urlLine.slice(5));
-  if (
-    url.origin !== embedOrigin ||
-    url.protocol !== "https:" ||
-    url.username ||
-    url.password ||
-    url.hash ||
-    !url.pathname.endsWith("/sharing") ||
-    !url.searchParams.has("c")
-  ) {
-    throw new Error("MeshCentral returned an invalid share");
-  }
-  return { shareId, url: url.toString() };
+  const url = normalizeShareUrl(urlLine.slice(5), [meshOrigin], embedOrigin);
+  return { shareId, url };
 }
 
-function publicSession(session) {
+function publicSession(session, config) {
   return {
     sessionId: session.sessionId,
     expiresAt: session.expiresAt,
-    views: session.views,
+    views: Object.fromEntries(
+      Object.entries(session.views).map(([view, url]) => [
+        view,
+        normalizeShareUrl(
+          url,
+          [config.meshOrigin, config.embedOrigin],
+          config.embedOrigin,
+        ),
+      ]),
+    ),
   };
 }
 
@@ -306,7 +320,7 @@ export function createBrokerService(config, options = {}) {
           session.deviceKeyId === input.deviceKeyId &&
           session.operatorId === input.operator.id,
       );
-      if (existing) return publicSession(existing);
+      if (existing) return publicSession(existing, config);
 
       const stale = state.sessions.filter(
         (session) => session.supportSessionId === input.supportSessionId,
@@ -340,7 +354,11 @@ export function createBrokerService(config, options = {}) {
             "--end",
             input.expiresAt.toISOString(),
           ]);
-          const created = parseCreatedShare(output, config.embedOrigin);
+          const created = parseCreatedShare(
+            output,
+            config.meshOrigin,
+            config.embedOrigin,
+          );
           shareIds[view] = created.shareId;
           views[view] = created.url;
         }
@@ -362,7 +380,7 @@ export function createBrokerService(config, options = {}) {
       };
       state.sessions.push(session);
       await saveState(config, state);
-      return publicSession(session);
+      return publicSession(session, config);
     });
   }
 

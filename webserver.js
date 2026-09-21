@@ -65,6 +65,13 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
 
     // Variables
     obj.args = args;
+    obj.guestShareTarget = null;
+    if (typeof obj.args.guestshareorigin == 'string') {
+        var guestShareUrl;
+        try { guestShareUrl = new URL(obj.args.guestshareorigin); } catch (ex) { throw new Error('guestShareOrigin must be an exact HTTPS origin.'); }
+        if ((guestShareUrl.protocol != 'https:') || (guestShareUrl.username != '') || (guestShareUrl.password != '') || (guestShareUrl.pathname != '/') || (guestShareUrl.search != '') || (guestShareUrl.hash != '')) { throw new Error('guestShareOrigin must be an exact HTTPS origin.'); }
+        obj.guestShareTarget = { hostname: guestShareUrl.hostname, port: (guestShareUrl.port == '') ? 443 : parseInt(guestShareUrl.port) };
+    }
     obj.parent = parent;
     obj.filespath = parent.filespath;
     obj.db = db;
@@ -4533,9 +4540,14 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
 
                     // Lets respond by sending out the desktop viewer.
                     var httpsPort = ((obj.args.aliasport == null) ? obj.args.port : obj.args.aliasport); // Use HTTPS alias port is specified
+                    var guestServerName = obj.getWebServerName(domain, req);
+                    if (obj.guestShareTarget != null) {
+                        guestServerName = obj.guestShareTarget.hostname;
+                        httpsPort = obj.guestShareTarget.port;
+                    }
                     parent.debug('web', 'handleSharingRequest: Sending guest sharing page for \"' + c.uid + '\", guest \"' + c.gn + '\".');
                     res.set({ 'Cache-Control': 'no-store' });
-                    render(req, res, getRenderPage('sharing', req, domain), getRenderArgs({ authCookie: authCookie, authRelayCookie: '', domainurl: encodeURIComponent(domain.url).replace(/'/g, '%27'), nodeid: c.nid, serverDnsName: obj.getWebServerName(domain, req), serverRedirPort: args.redirport, serverPublicPort: httpsPort, expire: c.expire, viewOnly: (c.vo == 1) ? 1 : 0, nodeName: encodeURIComponent(node.name).replace(/'/g, '%27'), features: c.p, features2: features2 }, req, domain));
+                    render(req, res, getRenderPage('sharing', req, domain), getRenderArgs({ authCookie: authCookie, authRelayCookie: '', domainurl: encodeURIComponent(domain.url).replace(/'/g, '%27'), nodeid: c.nid, serverDnsName: guestServerName, serverRedirPort: args.redirport, serverPublicPort: httpsPort, expire: c.expire, viewOnly: (c.vo == 1) ? 1 : 0, nodeName: encodeURIComponent(node.name).replace(/'/g, '%27'), features: c.p, features2: features2 }, req, domain));
                 }
             });
         });

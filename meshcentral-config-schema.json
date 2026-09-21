@@ -388,6 +388,11 @@
           "default": true,
           "description": "Indicates if the agent-only port must perform TLS, this should be set to false if TLS is performed in front of this server."
         },
+        "guestShareOrigin": {
+          "type": "string",
+          "format": "uri",
+          "description": "Exact HTTPS origin used by guest sharing pages and their WebSocket connections. This is useful when the operator console is available through a private access network while agents use a separate public endpoint."
+        },
         "agentLogDump": {
           "type": "boolean",
           "default": false,

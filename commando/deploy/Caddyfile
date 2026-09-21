@@ -3,9 +3,32 @@
 	admin off
 }
 
-{$SUPPORT_CONSOLE_HOST} {
+{$SUPPORT_CONSOLE_HOST}, {$SUPPORT_AGENT_HOST} {
 	encode zstd gzip
-	reverse_proxy http://meshcentral:8443
+	@broker {
+		host {$SUPPORT_CONSOLE_HOST}
+		remote_ip 172.29.0.4/32
+	}
+	handle @broker {
+		reverse_proxy http://meshcentral:8443
+	}
+	handle {
+		reverse_proxy http://meshcentral:8444
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+	}
+}
+
+# Loopback-only ingress for Tailscale Serve. Port 8080 is never published on
+# a public interface; the host maps it only to 127.0.0.1:18080.
+http://:8080 {
+	encode zstd gzip
+	reverse_proxy http://meshcentral:8443 {
+		header_up X-Forwarded-Proto https
+	}
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"

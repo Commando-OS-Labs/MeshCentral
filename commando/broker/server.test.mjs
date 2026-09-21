@@ -49,7 +49,7 @@ async function fixture() {
   return {
     config: {
       meshOrigin: "https://support.commando360.ai",
-      embedOrigin: "https://support.commando360.ai",
+      embedOrigin: "https://ai-services.sphinx-balance.ts.net:8443",
       meshLoginUser: "commando-broker",
       meshLoginPasswordFile: "/run/secrets/mesh-login-password",
       meshCtrlPath: "/app/meshctrl.js",
@@ -95,25 +95,50 @@ test("the deployment initializes broker state for the non-root runtime", async (
   assert.match(compose, /broker-state-init:/);
   assert.match(compose, /chown 100:101 \/state && chmod 0700 \/state/);
   assert.match(compose, /broker-state-init:\n\s+condition: service_completed_successfully/);
+  assert.match(compose, /MESH_EMBED_ORIGIN: \$\{SUPPORT_PRIVATE_CONSOLE_ORIGIN:\?required\}/);
 });
 
-test("share parsing accepts only the configured console origin", () => {
+test("share parsing validates the MeshCentral origin and returns the private console origin", () => {
   assert.deepEqual(
     parseCreatedShare(
       "ID: share_12345678\nURL: https://support.commando360.ai/sharing?c=token\n",
       "https://support.commando360.ai",
+      "https://ai-services.sphinx-balance.ts.net:8443",
     ),
     {
       shareId: "share_12345678",
-      url: "https://support.commando360.ai/sharing?c=token",
+      url: "https://ai-services.sphinx-balance.ts.net:8443/sharing?c=token",
     },
   );
   assert.throws(() =>
     parseCreatedShare(
       "ID: share_12345678\nURL: https://attacker.example/sharing?c=token\n",
       "https://support.commando360.ai",
+      "https://ai-services.sphinx-balance.ts.net:8443",
     ),
   );
+});
+
+test("the public console exposes only agents while Tailscale receives the UI", async () => {
+  const caddy = await readFile(
+    fileURLToPath(new URL("../deploy/Caddyfile", import.meta.url)),
+    "utf8",
+  );
+  const renderConfig = await readFile(
+    fileURLToPath(new URL("../deploy/render-config.mjs", import.meta.url)),
+    "utf8",
+  );
+  const webserver = await readFile(
+    fileURLToPath(new URL("../../webserver.js", import.meta.url)),
+    "utf8",
+  );
+  assert.match(caddy, /remote_ip 172\.29\.0\.4\/32/);
+  assert.match(caddy, /reverse_proxy http:\/\/meshcentral:8444/);
+  assert.match(caddy, /http:\/\/:8080/);
+  assert.match(renderConfig, /agentPort: 8444/);
+  assert.match(renderConfig, /guestShareOrigin: privateConsole\.origin/);
+  assert.match(webserver, /guestShareOrigin must be an exact HTTPS origin/);
+  assert.match(webserver, /obj\.guestShareTarget\.hostname/);
 });
 
 test("one approved session creates least-privilege shares and revokes all of them", async () => {
@@ -132,6 +157,10 @@ test("one approved session creates least-privilege shares and revokes all of the
 
   const session = await service.createSession(request());
   assert.equal(session.expiresAt, "2026-09-14T22:00:00.000Z");
+  assert.equal(
+    session.views.desktop,
+    "https://ai-services.sphinx-balance.ts.net:8443/sharing?c=token1",
+  );
   assert.deepEqual(Object.keys(session.views), ["desktop", "terminal", "files"]);
   assert.deepEqual(
     calls.slice(0, 3).map((args) => args[args.indexOf("--type") + 1]),
